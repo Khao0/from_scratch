@@ -1,7 +1,7 @@
 import numpy as np
 
 def softmax(xv):
-    e_x = np.power(np.e, xv)
+    e_x = np.power(np.e, xv-np.max(xv)) # subtract for preventing from high computation of exponent high value
     return e_x/np.sum(e_x)
 
 
