@@ -57,7 +57,6 @@ def detect(img):
         cropped_image = img
     return cropped_image
 
-
 def masking(img: np.ndarray) -> np.ndarray:
     H, W, _ = img.shape
     model = YOLO(f"models/segmentation.pt")
