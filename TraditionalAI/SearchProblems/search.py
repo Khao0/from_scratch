@@ -8,7 +8,8 @@
 from explore import explore  ##### DO NOT CHANGE THIS LINE #####
 
 from typing import Tuple, List, Set, Literal, TypeAlias, Dict
-Action:TypeAlias = Literal["right", "top", "left", "bottom"]
+Step: TypeAlias = Literal[-1, 0, 1]
+Action: TypeAlias = Tuple[Step, Step]
 Position:TypeAlias = Tuple[int, int]
 import heapq
 from dataclasses import dataclass, field
@@ -20,21 +21,25 @@ class Node:
     distance:int
     heuristic:int
     is_ZT_used:bool
+    parent: "Node | None" = None # for path reconstruction
+
 
     def __post_init__(self):
         self.priority = self.distance + self.heuristic
+
+    def is_goal(self, goal:Position) -> bool:
+        return self.position == goal
     
 # heapq for priority queue with time complexity O(log n)
 
 
 class Search:
-    ACTIONS :List[Action]= ["right", "top", "left", "bottom"]
-    MOVE_MAP : Dict[Action, Position]= {
-        "right":  (0, 1),
-        "top":    (-1, 0),
-        "left":   (0, -1),
-        "bottom": (1, 0),
-    }
+    SUCCESSORS : List[Position] = [
+        (0, 1),
+        (-1, 0),
+        (0, -1),
+        (1, 0),
+    ]
 
     def __init__(self):
         """
@@ -49,7 +54,7 @@ class Search:
         self.goal:Position = (0, 0)  # goal position (row, col)
 
     def successor(self, current_position:Position, action:Action)->Position|None:
-        dr, dc = self.MOVE_MAP[action]
+        dr, dc = action
         next_position = (current_position[0] + dr, current_position[1] + dc)
 
         # the column and row should start at (1, 1) and end with -1 because the given size includes the wall
@@ -82,7 +87,7 @@ class Search:
             position = self.fringe.pop(-1)
             stack:List[Position] = list()
             
-            for action in self.ACTIONS:
+            for action in self.SUCCESSORS:
                 next_position = self.successor(position, action)
 
                 if next_position:
@@ -117,7 +122,7 @@ class Search:
         while len(self.fringe) > 0:
             position = self.fringe.pop(0)
             
-            for action in self.ACTIONS:
+            for action in self.SUCCESSORS:
                 next_position = self.successor(position, action)
                 if next_position:
                     self.explored.add(next_position) # prevent duplicated explore calls, due to that the node in fringe will not explore again
@@ -132,10 +137,18 @@ class Search:
     @staticmethod
     def _manhattan_distance(pos1:Position, pos2:Position) -> int: # because we can perform only 4 action
         return abs(pos1[0]-pos2[0]) + abs(pos1[1]-pos2[1])
+    # have to find new heuristic function that fit with ZT and without ZT due to manhattan distance is baseline
+    
+    def heuristic(self, position:Position)->int:
+        # due to we utilized priority queue so the node that activate this function is the lowest cost already
+        # the 
+        dx = abs(position[0]-self.goal[0])
+        dy = abs(position[1]- self.goal[1])
+        # manhattan_distance - (len_zt+1 - min between x and y)
+        ...
     
     def successor_Astar(self, current_position:Position, action:Action)->Position|None:
-            
-        dr, dc = self.MOVE_MAP[action]
+        dr, dc = action
         next_position = (current_position[0] + dr, current_position[1] + dc)
 
         # the column and row should start at (1, 1) and end with -1 because the given size includes the wall
@@ -156,11 +169,20 @@ class Search:
         self.start = (sr, sc)
         self.goal = (gr, gc)
 
+        self.successors: List[Position] = [
+            (dx * i, dy * i)
+            for i in range(1, self.len_ZT + 1)
+            for dx, dy in self.SUCCESSORS
+        ]
+
+        # print(self.successors)
+
         self.fringe : List[Node] = list() # open list
         heapq.heappush(self.fringe, Node(self.start, 0, self._manhattan_distance(self.start, self.goal), False))
 
         self.cell_cache : Dict[Position, str] = {self.start: "S"} # remember that is this state call explore function
-        self.best_distance : Dict[Position, int] = {self.start:0} #closed list
+        self.best_distance : Dict[Position, int] = {self.start:self._manhattan_distance(self.start, self.goal)} #closed list : with better distance only
+        self.position_cache : Set[Position] = set(self.start) # preventing from re-expanding the node that already expand
 
     def Astar(self)->int:
         """
@@ -170,34 +192,60 @@ class Search:
 
         while len(self.fringe) > 0:
             node = heapq.heappop(self.fringe)
-            if node.position == self.goal:
+            current_position = node.position
+            if node.is_goal(self.goal):
                 return node.distance
+                #return node.distance, node
+            elif (current_position, node.is_ZT_used) in self.position_cache:
+                continue
+            else:
+                self.position_cache.add((current_position, node.is_ZT_used))
+            # if node.position was pop from the queue then continue because it already pop the best node
+            
+            if node.is_ZT_used:
+                self.perform_action(self.SUCCESSORS, node, current_position, False, True)
+            else:
+                self.perform_action(self.SUCCESSORS, node, current_position, False, False)
+                if self.len_ZT:
+                    self.perform_action(self.successors, node, current_position,True, True)
 
-            for action in self.ACTIONS:
-                next_position = self.successor_Astar(node.position, action)
-                if next_position:
-                    if next_position in self.cell_cache:
-                        # if it in cache, no need to explore again -> {(1,1):"S"} is a constant-time average operation due to the underlying hash table implementation which equal to set structure.
-                        state = self.cell_cache[next_position]
-                    else:
-                        state:str=explore(next_position[0], next_position[1])
-                        self.cell_cache[next_position] = state
-                        
 
-                    # Compute g(n)
-                    if state == "X":
-                        continue
-                    elif state in {"S", "G"}:
-                        distance = node.distance
-                    else:
-                        distance = node.distance + int(state)
+    def perform_action(self, successors, node, current_position, use_ZT, is_ZT_used):
+        for successor in successors:
+        # for successor in self.SUCCESSORS:
+            dr, dc = successor
+            next_position = (current_position[0] + dr, current_position[1] + dc)
+
+            if  not ((next_position[0] <= 0) or (next_position[1] <= 0) or \
+                (next_position[0] >= self.m - 1) or (next_position[1] >= self.n - 1)):
+                if use_ZT:
+                    state = "ZT"
+                elif next_position in self.cell_cache:
+                    # if it in cache, no need to explore again -> {(1,1):"S"} is a constant-time average operation due to the underlying hash table implementation which equal to set structure.
+                    state = self.cell_cache[next_position]
+                else:
+                    state:str=explore(next_position[0], next_position[1])
+                    self.cell_cache[next_position] = state
                     
-                    if next_position in self.best_distance and distance >= self.best_distance[next_position]:
-                        continue   # worse path > reject, prevent from compute too much
 
-                    heuristic = self._manhattan_distance(next_position, self.goal)
-                    self.best_distance[next_position] = distance
-                    heapq.heappush(self.fringe, Node(next_position, distance, heuristic, False))
+                # Compute g(n)
+                if state == "X":
+                    continue
+                elif state in {"S", "G", "ZT"}:
+                    distance = node.distance
+                else:
+                    distance = node.distance + int(state)
+                
+                if (next_position, is_ZT_used) in self.best_distance and distance >= self.best_distance[(next_position, is_ZT_used)]:
+                    continue   # worse path > reject, prevent from compute too much
+                self.best_distance[(next_position, is_ZT_used)] = distance
+                
+                heuristic_val = self._manhattan_distance(next_position, self.goal)
+                heapq.heappush(self.fringe, Node(next_position, distance, heuristic_val, is_ZT_used, node))
 
 if __name__ == "__main__":
     print(Search._manhattan_distance((0,0), (4,3)))
+
+    # TODO : refactor code
+    # TODO : change heuristic function
+    # TODO : optimize performance both time and space

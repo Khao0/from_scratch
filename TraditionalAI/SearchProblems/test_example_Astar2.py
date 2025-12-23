@@ -16,7 +16,15 @@ with open(secret_map_file, 'r') as file:
 myglobal.explore_calls = []
 ms = Search()
 ms.initialize_Astar(m, n, sr, sc, gr, gc, K)
-answer = ms.Astar()
+answer, goal_node = ms.Astar()
+goal_path = []
+node = goal_node
+while node is not None:
+    goal_path.append(node.position)
+    node = node.parent
+goal_path.reverse()
+print("Path to goal:", goal_path)
+
 
 if solution == answer:
     print("Your function returns " + str(answer))
