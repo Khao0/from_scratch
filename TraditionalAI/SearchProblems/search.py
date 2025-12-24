@@ -140,12 +140,10 @@ class Search:
     # have to find new heuristic function that fit with ZT and without ZT due to manhattan distance is baseline
     
     def heuristic(self, position:Position)->int:
-        # due to we utilized priority queue so the node that activate this function is the lowest cost already
-        # the 
+        # should we consider ZT used or not?
         dx = abs(position[0]-self.goal[0])
         dy = abs(position[1]- self.goal[1])
-        # manhattan_distance - (len_zt+1 - min between x and y)
-        ...
+        return dx + dy + min(dx, dy) - self.len_ZT
     
     def successor_Astar(self, current_position:Position, action:Action)->Position|None:
         dr, dc = action
@@ -178,10 +176,10 @@ class Search:
         # print(self.successors)
 
         self.fringe : List[Node] = list() # open list
-        heapq.heappush(self.fringe, Node(self.start, 0, self._manhattan_distance(self.start, self.goal), False))
+        heapq.heappush(self.fringe, Node(self.start, 0, self.heuristic(self.start), False))
 
         self.cell_cache : Dict[Position, str] = {self.start: "S"} # remember that is this state call explore function
-        self.best_distance : Dict[Position, int] = {self.start:self._manhattan_distance(self.start, self.goal)} #closed list : with better distance only
+        self.best_distance : Dict[Position, int] = {} #closed list : with better distance only
         self.position_cache : Set[Position] = set(self.start) # preventing from re-expanding the node that already expand
 
     def Astar(self)->int:
@@ -192,7 +190,7 @@ class Search:
 
         while len(self.fringe) > 0:
             node = heapq.heappop(self.fringe)
-            current_position = node.position
+            current_position = node.position 
             if node.is_goal(self.goal):
                 return node.distance
                 #return node.distance, node
@@ -212,7 +210,6 @@ class Search:
 
     def perform_action(self, successors, node, current_position, use_ZT, is_ZT_used):
         for successor in successors:
-        # for successor in self.SUCCESSORS:
             dr, dc = successor
             next_position = (current_position[0] + dr, current_position[1] + dc)
 
@@ -240,11 +237,8 @@ class Search:
                     continue   # worse path > reject, prevent from compute too much
                 self.best_distance[(next_position, is_ZT_used)] = distance
                 
-                heuristic_val = self._manhattan_distance(next_position, self.goal)
+                heuristic_val = self.heuristic(next_position)
                 heapq.heappush(self.fringe, Node(next_position, distance, heuristic_val, is_ZT_used, node))
-
-if __name__ == "__main__":
-    print(Search._manhattan_distance((0,0), (4,3)))
 
     # TODO : refactor code
     # TODO : change heuristic function
