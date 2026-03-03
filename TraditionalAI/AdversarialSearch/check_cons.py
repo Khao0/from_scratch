@@ -22,19 +22,19 @@ class ConnectNWinChecker():
                 cell[1] < self.num_col)
                 
     def count_diagonal(self, last_played_cell:Tuple[int], offset1:Tuple[int], offset2:Tuple[int]):
-        cell = last_played_cell
         count = 1
         
+        cell = last_played_cell
         while self.is_in_grid(self.next_cell(cell, [offset1[0], offset1[1]])):
             count += 1
             cell = self.next_cell(cell, [offset1[0], offset1[1]])
-        cell = last_played_cell  
         
+        cell = last_played_cell  
         while self.is_in_grid(self.next_cell(cell, [offset2[0], offset2[1]])):
             count += 1
             cell = self.next_cell(cell, [offset2[0], offset2[1]])
             
-        return count  
+        return count
 
     def is_horizontal_win(self, board:Board, player:Player, last_played_cell:Tuple[int]):
         score = 0
@@ -59,25 +59,34 @@ class ConnectNWinChecker():
                 score = 0
         return False
         
-    def is_diagonal_win(self, board:Board, player:Player, last_played_cell:Tuple[int], offset1:Tuple[int], offset2:Tuple[int]):
+    def is_diagonal_win(self, 
+                    board: Board, player: Player,
+                    last_played_cell: Tuple[int, int],
+                    offset1: Tuple[int, int],
+                    offset2: Tuple[int, int]) -> bool:
 
-        if self.count_diagonal(last_played_cell, offset1, offset2) < self.win_score:
+        diag_length = self.count_diagonal(last_played_cell, offset1, offset2)
+
+        if diag_length < self.win_score:
             return False
-        
+
+        # Move to the start of diagonal
         cell = last_played_cell
         while self.is_in_grid(self.next_cell(cell, offset1)):
             cell = self.next_cell(cell, offset1)
-        
+
         score = 0
-        for i in range(0, self.count_diagonal(last_played_cell, offset1, offset2)):
+        for _ in range(diag_length):
             if board[cell[0]][cell[1]] == player:
                 score += 1
-            if score >= self.win_score:
-                return True
+                if score >= self.win_score:
+                    return True
             else:
                 score = 0
+
             cell = self.next_cell(cell, offset2)
-        return False    
+
+        return False
             
     def is_win(self, board:Board, player:bool, last_played_cell:Tuple[int]) -> bool:
         player:Player = 1 if player else -1
