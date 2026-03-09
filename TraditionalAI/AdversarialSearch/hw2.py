@@ -1,5 +1,4 @@
 from typing import TypeAlias, Literal, List, Tuple
-from check_cons import ConnectNWinChecker, Board
 from abc import ABC, abstractmethod
 import copy
 import time
