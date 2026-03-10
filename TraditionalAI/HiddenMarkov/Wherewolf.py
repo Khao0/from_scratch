@@ -1,3 +1,10 @@
+#####
+#
+# Name: Kwankhao Tangprasert
+# Student ID: 653040165-6
+#
+#####
+
 class Wherewolf:
     def __init__(self,N,M,R,W_o,W_q,W_s,V_o,V_q,V_s,T):
         self.total = N+M
